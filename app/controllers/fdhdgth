@@ -1,0 +1,148 @@
+const Busboy = require('busboy');
+const Annonce = require('../models/annonce.model.js');
+
+// Create and Save a new annonce
+exports.create = (req, res) => {
+    console.log("aaaaa",req.body,req.headers)
+    // Validate request
+    if(!req.body.category) {
+        return res.status(400).send({
+            message: "category content can not be empty"
+        });
+    }
+
+    var uploadedFilename = "";
+    var busboy = new Busboy({ headers: req.headers });
+    busboy.on('file', function(fieldname, file, filename, encoding, mimetype) {
+        uploadedFilename = filename;
+        var saveTo = path.join(__dirname, 'uploads_mss/' + filename);
+        file.pipe(fs.createWriteStream(saveTo));
+    });
+    
+    busboy.on('finish', function() {
+        res.writeHead(200, { 'Connection': 'close' });
+        res.end("That's all folks!");
+    });  
+    
+
+    // Create a annonce
+    const annonce = new Annonce({
+        category: req.body.category || "Untitled Annonce", 
+        titre : req.body.titre,
+        description: req.body.description,
+        image:uploadedFilename,
+        name:req.body.name,
+        telephone:req.body.telephone,
+        email:req.body.email,
+        localisation:req.body.localisation,
+        prix:req.body.prix
+    });
+console.log("1",req.body)
+    // Save admin in the database
+    annonce.save()
+    .then(data => {
+        console.log("2",data)
+        res.send(data);
+    }).catch(err => {
+        res.status(500).send({
+            message: err.message || "Some error occurred while creating the annonce."
+        });
+    });
+};
+
+// Retrieve and return all admin from the database.
+exports.findAll = (req, res) => {
+    Annonce.find()
+    .then(annonces => {
+        res.send(annonces);
+    }).catch(err => {
+        res.status(500).send({
+            message: err.message || "Some error occurred while retrieving annonces."
+        });
+    });
+};
+
+// Find a single admin with a adminId
+exports.findOne = (req, res) => {
+    Annonce.findById(req.params.annonceId)
+    .then(annonce => {
+        if(!annonce) {
+            return res.status(404).send({
+                message: "annonce not found with id " + req.params.annonceId
+            });            
+        }
+        res.send(annonce);
+    }).catch(err => {
+        if(err.kind === 'ObjectId') {
+            return res.status(404).send({
+                message: "annonce not found with id " + req.params.annonceId
+            });                
+        }
+        return res.status(500).send({
+            message: "Error retrieving annonce with id " + req.params.annonceId
+        });
+    });
+};
+
+// Update a admin identified by the adminId in the request
+exports.update = (req, res) => {
+    // Validate Request
+    if(!req.body.category) {
+        return res.status(400).send({
+            message: "annonce content can not be empty"
+        });
+    }
+
+    // Find admin and update it with the request body
+    Annonce.findByIdAndUpdate(req.params.annonceId, {
+        category: req.body.category || "Untitled Annonce", 
+        titre : req.body.titre,
+        description: req.body.description,
+        image:req.body.image,
+    name:req.body.name,
+    telephone:req.body.telephone,
+    email:req.body.email,
+    localisation:req.body.localisation,
+    prix:req.body.prix
+    }, {new: true})
+    .then(annonce => {
+        if(!annonce) {
+            return res.status(404).send({
+                message: "annonce not found with id " + req.params.annonceId
+            });
+        }
+        res.send(annonce);
+    }).catch(err => {
+        if(err.kind === 'ObjectId') {
+            return res.status(404).send({
+                message: "annonce not found with id " + req.params.annonceId
+            });                
+        }
+        return res.status(500).send({
+            message: "Error updating annonce with id " + req.params.annonceId
+        });
+    });
+};
+
+// Delete a admin with the specified adminId in the request
+exports.delete = (req, res) => {
+    Annonce.findByIdAndRemove(req.params.annonceId)
+    .then(annonce => {
+        if(!annonce) {
+            return res.status(404).send({
+                message: "annonce not found with id " + req.params.annonceId
+            });
+        }
+        res.send({message: "annonce deleted successfully!"});
+    }).catch(err => {
+        if(err.kind === 'ObjectId' || err.name === 'NotFound') {
+            return res.status(404).send({
+                message: "annonce not found with id " + req.params.annonceId
+            });                
+        }
+        return res.status(500).send({
+            message: "Could not delete annonce with id " + req.params.annonceId
+        });
+    });
+};
+
